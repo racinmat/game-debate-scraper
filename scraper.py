@@ -8,7 +8,7 @@ import datetime
 import pandas as pd
 
 # column_headers array contains the names for the columns.
-column_headers = ["ID", "Title", "EUrelease", "USrelease", "AUrelease", "OTHERrelease", "Genre", "Theme",
+column_headers = ["ID", "Title", "Release", "Genre", "Theme",
                   "INTELCPU1", "AMDCPU1", "NVIDIAGPU1", "AMDGPU1", "RAM1", "OS1", "DX1", "HDD1",
                   "INTELCPU2", "AMDCPU2", "NVIDIAGPU2", "AMDGPU2", "RAM2", "OS2", "DX2", "HDD2",
                   "INTELCPU3", "AMDCPU3", "NVIDIAGPU3", "AMDGPU3", "RAM3", "OS3", "DX3", "HDD3"]
@@ -77,38 +77,11 @@ class Scraper:
 
         return unformatted
 
-    def get_rel_dates(self):
+    def get_rel_date(self):
 
-        info_wrapper = self.soup.find("div", "g_wrapper")
-        dates = info_wrapper.find("div", "gdate")
-        titles = dates.findAll("div", "gdateTitle")
-        datedatas = dates.findAll("div", "gdateData")
-
-        counter = 0
-
-        # read the found titles, and store possible found dates. last elif is just for misc release results the page
-        # has sometimes eg. "cancelled?"
-        for title in titles:
-
-            if "EU" in title.text:
-                self.datastorage["EUrelease"] = self.format_date(datedatas[counter].text.strip())
-                if datedatas[counter].text.strip() == "":
-                    self.datastorage["EUrelease"] = '-'
-
-            elif "US" in title.text:
-                self.datastorage["USrelease"] = self.format_date(datedatas[counter].text.strip())
-                if datedatas[counter].text.strip() == "":
-                    self.datastorage["USrelease"] = '-'
-            elif "AU" in title.text:
-                self.datastorage["AUrelease"] = self.format_date(datedatas[counter].text.strip())
-                if datedatas[counter].text.strip() == "":
-                    self.datastorage["AUrelease"] = '-'
-            elif title.text.strip() != "":
-
-                self.datastorage["OTHERrelease"] += self.format_date(title.text.strip())
-                self.datastorage["OTHERrelease"] += self.format_date(datedatas[counter].text.strip())
-
-            counter += 1
+        rel_date_str = self.soup.find("div", "game-release-date").select('p')[1]
+        rel_date = datetime.datetime.strptime(rel_date_str.text, '%d %b %Y ')
+        self.datastorage['Release'] = rel_date
 
     def get_genre_theme(self):
 
@@ -116,6 +89,7 @@ class Scraper:
         info_wrapper = self.soup.find("div", "g_wrapper")
         genre_divs = info_wrapper.findAll("div", "genre")
 
+        # todo: dodělat to parsování
         try:
             self.datastorage["Genre"] = genre_divs[0].text.replace("Genre", "").strip()
         except AttributeError:
@@ -267,7 +241,7 @@ class Scraper:
             return None
 
         # release dates
-        self.get_rel_dates()
+        self.get_rel_date()
 
         # genre and theme
         self.get_genre_theme()
