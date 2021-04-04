@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 #-*- coding:UTF-8 -*-
 
-#rikujjs
-
-
 #some aftermath operations that had to be done to the data to make it more analysable. separating clocks and cores etc.
 #more data editing scripts to come.
 
@@ -95,7 +92,7 @@ if __name__ == "__main__":
         if "Blackberry" in game[1] and "[PC]" not in game[1]:
             counter += 1
             continue
-            print line
+            print(line)
 
 
 #-------------------------------no edits after this line, writing back to file-----------------------------------------
@@ -111,4 +108,4 @@ if __name__ == "__main__":
 
         speed = '-'
 
-    print counter
+    print(counter)
