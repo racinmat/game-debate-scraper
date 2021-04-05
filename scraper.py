@@ -85,7 +85,7 @@ class Scraper:
         self.datastorage['Release'] = rel_date
 
     def get_genre_theme(self):
-        # find the propper container, and see if theres a genre and theme to be collected
+        # find the proper container, and see if theres a genre and theme to be collected
         info_wrapper = self.soup.find("div", "g_wrapper")
         genre_divs = info_wrapper.findAll("div", "gameGenreRow")
 
@@ -137,23 +137,19 @@ class Scraper:
         self.datastorage["AMDGPU" + str(req_number)] = amb_box.find('a').text.strip()
 
         # vram
-        spec = req_column.find("div",
-                               'systemRequirementsHwBoxVRAMMin' if req_number == 1 else 'systemRequirementsHwBoxVRAM')
+        spec = req_column.find("div", 'systemRequirementsHwBoxVRAM' + ('Min' if req_number == 1 else '')).find('div')
         self.datastorage["VRAM" + str(req_number)] = spec.text.strip()
 
         # ram
-        spec = req_column.find("div",
-                               'systemRequirementsHwBoxRAMMin' if req_number == 1 else 'systemRequirementsHwBoxRAM')
+        spec = req_column.find("div", 'systemRequirementsHwBoxRAM' + ('Min' if req_number == 1 else '')).find('div')
         self.datastorage["RAM" + str(req_number)] = spec.text.strip()
 
         # os
-        spec = req_column.find("div",
-                               'systemRequirementsHwBoxSystemMin' if req_number == 1 else 'systemRequirementsHwBoxSystem')
+        spec = req_column.find("div", 'systemRequirementsHwBoxSystem' + ('Min' if req_number == 1 else '')).find('div')
         self.datastorage["OS" + str(req_number)] = spec.text.strip()
 
         # direct x
-        spec = req_column.find("div",
-                               'systemRequirementsHwBoxDirectXMin' if req_number == 1 else 'systemRequirementsHwBoxDirectX')
+        spec = req_column.find("div", 'systemRequirementsHwBoxDirectX' + ('Min' if req_number == 1 else '')).find('div')
         self.datastorage["DX" + str(req_number)] = spec.text.strip()
 
         # hdd
@@ -230,14 +226,11 @@ class Scraper:
         # do the actual scraping here
         soup = self.soup
 
-        if self.id % 50 == 0:
-            print("ID: ", self.id, " ", datetime.datetime.now())
-
         # Title
         try:
-            self.datastorage["Title"] = soup.find("div", id="art_g_title").text
-            if "[ Android ]" in self.datastorage["Title"] or "[]" in self.datastorage["Title"] \
-                    or "[ IOS ]" in self.datastorage["Title"]:
+            art_title = soup.find("div", id="art_g_title").text
+            self.datastorage["Title"] = soup.find("div", "game-title-container").text.strip()
+            if "[ Android ]" in art_title or "[]" in art_title or "[ IOS ]" in art_title:
                 return None
         except AttributeError:
             # print self.url
@@ -298,5 +291,6 @@ if __name__ == "__main__":
         sleep(1)
         if i % 100 == 0:
             df.to_csv(f"game-debate_start_{starting_id}_{i}.csv", index=False)
+            print(f'persisting file after ID {i}')
 
     df.to_csv(output_file, index=False)
