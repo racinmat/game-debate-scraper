@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-#-*- coding:UTF-8 -*-
+# -*- coding:UTF-8 -*-
 
-#rikujjs
+# rikujjs
 
 
 if __name__ == "__main__":
-
 
     inputfile = open("game-debate_jee.csv", 'r')
 
@@ -21,14 +20,13 @@ if __name__ == "__main__":
 
     index = 0
 
-
     counter = 0
     for header in headers:
 
-        #"INTELCPUMODEL"
-        #"AMDCPUMODEL"
+        # "INTELCPUMODEL"
+        # "AMDCPUMODEL"
         if header == "AMDCPUMODEL":
-            index = counter+1
+            index = counter + 1
             print(index)
         counter += 1
 
@@ -42,18 +40,15 @@ if __name__ == "__main__":
             continue
 
         specs = line.strip().split(';')
-        if (specs[index] != '-'):
+        if specs[index] != '-':
             all_counter += 1
             tmps = specs[index].split(' ')
             for tmp in tmps:
 
-                if tmp.startswith('E') or (tmp.startswith('Q') and tmp.lower() != 'quad') :
+                if tmp.startswith('E') or (tmp.startswith('Q') and tmp.lower() != 'quad'):
                     print(tmp)
                     change_counter += 1
-            #print specs[index]
-
-
-
+            # print specs[index]
 
     print(change_counter)
     print('/')

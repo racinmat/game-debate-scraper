@@ -80,9 +80,14 @@ class Scraper:
 
     def get_rel_date(self):
         info_wrapper = self.soup.find("div", "g_wrapper")
-        rel_date_str = info_wrapper.find("div", "game-release-date").select('p')[1]
-        rel_date = datetime.datetime.strptime(rel_date_str.text, '%d %b %Y ')
-        self.datastorage['Release'] = rel_date
+        rel_date_div = info_wrapper.find("div", "game-release-date").select('p')[1]
+        rel_date_str = rel_date_div.text.strip()
+        try:
+            rel_date = datetime.datetime.strptime(rel_date_str, '%d %b %Y')
+            self.datastorage['Release'] = rel_date
+        except ValueError:
+            self.datastorage['Release'] = None
+            pass
 
     def get_genre_theme(self):
         # find the proper container, and see if theres a genre and theme to be collected
@@ -91,7 +96,6 @@ class Scraper:
 
         if len(genre_divs) > 1:
             print(f'more genre divs, url: {self.url}')
-        # todo: dodělat to parsování
         try:
             self.datastorage["Genres"] = genre_divs[0].text.split('\n')[2].split(', ')
         except AttributeError:
@@ -102,6 +106,14 @@ class Scraper:
             self.datastorage["Theme"] = genre_divs[1].text.replace("Theme", "").strip()
         except (AttributeError, IndexError):
             pass
+
+    def col2suffix(self, req_number):
+        if req_number == 1:
+            return 'Min'
+        elif req_number == 2:
+            return ''
+        elif req_number == 3:
+            return 'Adj'
 
     def read_column(self, req_column):
 
@@ -137,41 +149,41 @@ class Scraper:
 
         # gpus
         gpu_box = cpu_gpu_boxes[1]
-        intel_box = gpu_box.find("div", "systemRequirementsLinkSubTop")
         try:
+            intel_box = gpu_box.find("div", "systemRequirementsLinkSubTop")
             self.datastorage["NVIDIAGPU" + str(req_number)] = intel_box.find('a').text.strip()
         except AttributeError:
             pass
-        amb_box = gpu_box.find("div", "systemRequirementsLinkSubBtm")
         try:
+            amb_box = gpu_box.find("div", "systemRequirementsLinkSubBtm")
             self.datastorage["AMDGPU" + str(req_number)] = amb_box.find('a').text.strip()
         except AttributeError:
             pass
 
         # vram
-        spec = req_column.find("div", 'systemRequirementsHwBoxVRAM' + ('Min' if req_number == 1 else '')).find('div')
         try:
+            spec = req_column.find("div", 'systemRequirementsHwBoxVRAM' + self.col2suffix(req_number)).find('div')
             self.datastorage["VRAM" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
 
         # ram
-        spec = req_column.find("div", 'systemRequirementsHwBoxRAM' + ('Min' if req_number == 1 else '')).find('div')
         try:
+            spec = req_column.find("div", 'systemRequirementsHwBoxRAM' + self.col2suffix(req_number)).find('div')
             self.datastorage["RAM" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
 
         # os
-        spec = req_column.find("div", 'systemRequirementsHwBoxSystem' + ('Min' if req_number == 1 else '')).find('div')
         try:
+            spec = req_column.find("div", 'systemRequirementsHwBoxSystem' + self.col2suffix(req_number)).find('div')
             self.datastorage["OS" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
 
         # direct x
-        spec = req_column.find("div", 'systemRequirementsHwBoxDirectX' + ('Min' if req_number == 1 else '')).find('div')
         try:
+            spec = req_column.find("div", 'systemRequirementsHwBoxDirectX' + self.col2suffix(req_number)).find('div')
             self.datastorage["DX" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
@@ -246,6 +258,9 @@ if __name__ == "__main__":
         # lowest id which actually contains a game is 12
         starting_id = int(f.read()) + 1
 
+    # for debug purpose
+    # starting_id = 17
+
     # the file we are gonna write the gotten info, the file has the starting_id in it, in case starting
     # from somewhere else than the begining.
     output_file = f"game-debate_start_{starting_id}.csv"
@@ -266,11 +281,10 @@ if __name__ == "__main__":
 
         df = df.append(page_info, ignore_index=True)
 
-        with open('last_index.txt', 'w') as f:
-            f.write(f'{i}')
-
         # be nice, the longer the better
         if i % 100 == 0:
+            with open('last_index.txt', 'w') as f:
+                f.write(f'{i}')
             df.to_csv(f"game-debate_start_{starting_id}_{i}.csv", index=False)
             print(f'persisting file after ID {i}')
         sleep(1)
