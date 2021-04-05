@@ -8,10 +8,10 @@ import datetime
 import pandas as pd
 
 # column_headers array contains the names for the columns.
-column_headers = ["ID", "Title", "Release", "Genre", "Theme",
-                  "INTELCPU1", "AMDCPU1", "NVIDIAGPU1", "AMDGPU1", "RAM1", "OS1", "DX1", "HDD1",
-                  "INTELCPU2", "AMDCPU2", "NVIDIAGPU2", "AMDGPU2", "RAM2", "OS2", "DX2", "HDD2",
-                  "INTELCPU3", "AMDCPU3", "NVIDIAGPU3", "AMDGPU3", "RAM3", "OS3", "DX3", "HDD3"]
+column_headers = ["ID", "Title", "Release", "Genres", "Theme",
+                  "INTELCPU1", "AMDCPU1", "NVIDIAGPU1", "AMDGPU1", "VRAM1", "RAM1", "OS1", "DX1", "HDD1",
+                  "INTELCPU2", "AMDCPU2", "NVIDIAGPU2", "AMDGPU2", "VRAM2", "RAM2", "OS2", "DX2", "HDD2",
+                  "INTELCPU3", "AMDCPU3", "NVIDIAGPU3", "AMDGPU3", "VRAM3", "RAM3", "OS3", "DX3", "HDD3"]
 
 spec_header = ["INTELCPU", "AMDCPU", "NVIDIAGPU", "AMDGPU", "RAM", "OS", "DX", "HDD"]
 
@@ -24,6 +24,7 @@ class Scraper:
         self.url = url
         game_id = url.rsplit("=", 1)
         self.id = int(game_id[1])
+        self.datastorage = {}
 
         # initialize the datastorage[] dict
         for header in column_headers:
@@ -46,7 +47,7 @@ class Scraper:
         # write the columns to a single string, place a ';' in between
         for header in column_headers:
             info_string += ';'
-            info_string += self.datastorage[header].strip().encode('utf-8', 'ignore').replace(";", '')
+            info_string += self.datastorage[header].strip()
 
         # get rid of the first ;
         info_string = info_string.replace(";", "", 1)
@@ -78,20 +79,21 @@ class Scraper:
         return unformatted
 
     def get_rel_date(self):
-
-        rel_date_str = self.soup.find("div", "game-release-date").select('p')[1]
+        info_wrapper = self.soup.find("div", "g_wrapper")
+        rel_date_str = info_wrapper.find("div", "game-release-date").select('p')[1]
         rel_date = datetime.datetime.strptime(rel_date_str.text, '%d %b %Y ')
         self.datastorage['Release'] = rel_date
 
     def get_genre_theme(self):
-
         # find the propper container, and see if theres a genre and theme to be collected
         info_wrapper = self.soup.find("div", "g_wrapper")
-        genre_divs = info_wrapper.findAll("div", "genre")
+        genre_divs = info_wrapper.findAll("div", "gameGenreRow")
 
+        if len(genre_divs) > 1:
+            print(f'more genre divs, url: {self.url}')
         # todo: dodělat to parsování
         try:
-            self.datastorage["Genre"] = genre_divs[0].text.replace("Genre", "").strip()
+            self.datastorage["Genres"] = genre_divs[0].text.split('\n')[2].split(', ')
         except AttributeError:
             # attribute errors are ok, there is the default value "-" already there
             pass
@@ -116,90 +118,92 @@ class Scraper:
             print(self.url)
 
         # we get the actual rows, and start collecting the data, and storing them in .datastorage
-        rows = req_column.findAll("div", recursive=False)
 
-        row_counter = 0
-        for row in rows:
+        req_column_inner = req_column.find("div", 'system-requirements-box')
+        rows = req_column_inner.findAll("div", recursive=False)
+        cpu_gpu_boxes = req_column_inner.findAll('div', 'systemRequirementsHwBox')
+        # read the cpus
+        cpu_box = cpu_gpu_boxes[0]
+        intel_box = cpu_box.find("div", "systemRequirementsLinkSubTop")
+        self.datastorage["INTELCPU" + str(req_number)] = intel_box.find('a').text.strip()
+        amb_box = cpu_box.find("div", "systemRequirementsLinkSubBtm")
+        self.datastorage["AMDCPU" + str(req_number)] = amb_box.find('a').text.strip()
 
-            # skip the first row (title row)
-            if row_counter == 0:
-                row_counter += 1
-                continue
+        # gpus
+        gpu_box = cpu_gpu_boxes[1]
+        intel_box = gpu_box.find("div", "systemRequirementsLinkSubTop")
+        self.datastorage["NVIDIAGPU" + str(req_number)] = intel_box.find('a').text.strip()
+        amb_box = gpu_box.find("div", "systemRequirementsLinkSubBtm")
+        self.datastorage["AMDGPU" + str(req_number)] = amb_box.find('a').text.strip()
 
-            # read the cpus
-            if row_counter == 1:
+        # vram
+        spec = req_column.find("div",
+                               'systemRequirementsHwBoxVRAMMin' if req_number == 1 else 'systemRequirementsHwBoxVRAM')
+        self.datastorage["VRAM" + str(req_number)] = spec.text.strip()
 
-                try:
-                    top = row.find("div", "systemRequirementsLinkSubTop")
-                    top = top.find('a').text
-                    self.datastorage["INTELCPU" + str(req_number)] = top.strip()
-                except AttributeError:
-                    # not all have to top and bottom parts
-                    pass
-                try:
-                    bottom = row.find("div", "systemRequirementsLinkSubBtm")
-                    bottom = bottom.find('a').text
-                    self.datastorage["AMDCPU" + str(req_number)] = bottom.strip()
-                except AttributeError:
-                    pass
+        # ram
+        spec = req_column.find("div",
+                               'systemRequirementsHwBoxRAMMin' if req_number == 1 else 'systemRequirementsHwBoxRAM')
+        self.datastorage["RAM" + str(req_number)] = spec.text.strip()
 
-            # gpus
-            elif row_counter == 2:
+        # os
+        spec = req_column.find("div",
+                               'systemRequirementsHwBoxSystemMin' if req_number == 1 else 'systemRequirementsHwBoxSystem')
+        self.datastorage["OS" + str(req_number)] = spec.text.strip()
 
-                try:
-                    top = row.find("div", "systemRequirementsLinkSubTop")
-                    top = top.find('a').text
-                    self.datastorage["NVIDIAGPU" + str(req_number)] = top.strip()
+        # direct x
+        spec = req_column.find("div",
+                               'systemRequirementsHwBoxDirectXMin' if req_number == 1 else 'systemRequirementsHwBoxDirectX')
+        self.datastorage["DX" + str(req_number)] = spec.text.strip()
 
-                except AttributeError:
+        # hdd
+        spec = rows[6]
+        self.datastorage["HDD" + str(req_number)] = spec.text.strip()
 
-                    # not all have to top and bottom parts
-                    pass
-                try:
-                    bottom = row.find("div", "systemRequirementsLinkSubBtm")
-                    bottom = bottom.find('a').text
-                    self.datastorage["AMDGPU" + str(req_number)] = bottom.strip()
-                except:
-                    pass
+        # elif row_counter == 3:
+        # try:
+        #     spec = row.find("div", "systemRequirementsRamContent")
+        #     spec = spec.find('span').text
+        # except AttributeError:
+        #     # print spec.text
+        #     # print self.id
+        #     pass
 
-            # ram
-            elif row_counter == 3:
-                try:
-                    spec = row.find("div", "systemRequirementsRamContent")
-                    spec = spec.find('span').text
-                    self.datastorage["RAM" + str(req_number)] = spec.strip()
-                except AttributeError:
-                    # print spec.text
-                    # print self.id
-                    pass
+        #
+        # row_counter = 0
+        # for row in rows:
+        #
+        #     # skip the first row (title row)
+        #     if row_counter == 0:
+        #         row_counter += 1
+        #         continue
+        #
+        #     # skip the second row (buy it row)
+        #     if row_counter == 0:
+        #         row_counter += 1
+        #         continue
+        #
+        #     # gpus
+        #     elif row_counter == 2:
+        #
+        #         try:
+        #             top = row.find("div", "systemRequirementsLinkSubTop")
+        #             top = top.find('a').text
+        #             self.datastorage["NVIDIAGPU" + str(req_number)] = top.strip()
+        #
+        #         except AttributeError:
+        #
+        #             # not all have to top and bottom parts
+        #             pass
+        #         try:
+        #             bottom = row.find("div", "systemRequirementsLinkSubBtm")
+        #             bottom = bottom.find('a').text
+        #             self.datastorage["AMDGPU" + str(req_number)] = bottom.strip()
+        #         except:
+        #             pass
 
-            # os
-            elif row_counter == 4:
-
-                try:
-                    spec = row.find("span").text
-                    self.datastorage["OS" + str(req_number)] = spec.strip()
-
-                except AttributeError:
-                    pass
-
-            elif row_counter == 5:
-                try:
-                    spec = row.find("span").text
-                    self.datastorage["DX" + str(req_number)] = spec.strip()
-
-                except AttributeError:
-                    pass
-
-            elif row_counter == 6:
-                try:
-                    spec = row.find("span").text
-                    self.datastorage["HDD" + str(req_number)] = spec.strip()
-
-                except AttributeError:
-                    pass
-
-            row_counter += 1
+    def parse_requirements(self):
+        pass
 
     def get_requirements(self):
 
@@ -208,12 +212,11 @@ class Scraper:
         spec_box = self.soup.find("div", id="systemRequirementsOuterBox")
 
         # no specs found, lets go away
-        if spec_box == None:
+        if spec_box is None:
             return
 
-        # check if the rows have the same title allways
-        row_titles = spec_box.find("div", id="systemRequirementsSubheadWrap")
-        row_title_count = row_titles.findAll("div", recursive=False)
+        # # check if the rows have the same title allways
+        # row_titles = spec_box.find("div", id="systemRequirementsSubheadWrap")
 
         # since there was a OuterBox, we have atleast some sp
         req_columns = spec_box.findAll("div", "systemRequirementsWrapBox gameSystemRequirementsWrapBox")
@@ -250,7 +253,7 @@ class Scraper:
         self.get_requirements()
 
         # after all the info is in the datastorage[] dictionary, we write it to a single string and return
-        return self.info_to_string()
+        return self.datastorage
 
     # member variables
     soup = None
@@ -266,13 +269,12 @@ if __name__ == "__main__":
 
     with open('last_index.txt', 'r') as f:
         # lowest id which actually contains a game is 12
-        starting_id = int(f.read())+1
+        starting_id = int(f.read()) + 1
 
     # the file we are gonna write the gotten info, the file has the starting_id in it, in case starting
     # from somewhere else than the begining.
     output_file = f"game-debate_start_{starting_id}.csv"
     df = pd.DataFrame(columns=column_headers)
-    output = open(output_file, 'w')
 
     print(f"starting with ID: {starting_id} in {datetime.datetime.now()}")
 
@@ -283,14 +285,14 @@ if __name__ == "__main__":
         page_info = page_to_get.get_pageinfo()
 
         # if we didnt get anything back (no info etc), we skip the writing
-        if page_info == None:
-            starting_id += 1
+        if page_info is None:
             continue
 
-        # write the info to a outputfile
-        output.write(page_info)
-        output.write("\n")
+        df.append(page_info, ignore_index=True)
+
+        with open('last_index.txt', 'w') as f:
+            f.write(f'{i}')
 
         # be nice, the longer the better
         sleep(3)
-        starting_id += 1
+    df.to_csv(output_file, index=False)
