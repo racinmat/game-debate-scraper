@@ -125,86 +125,68 @@ class Scraper:
         # read the cpus
         cpu_box = cpu_gpu_boxes[0]
         intel_box = cpu_box.find("div", "systemRequirementsLinkSubTop")
-        self.datastorage["INTELCPU" + str(req_number)] = intel_box.find('a').text.strip()
+        try:
+            self.datastorage["INTELCPU" + str(req_number)] = intel_box.find('a').text.strip()
+        except AttributeError:
+            pass
         amb_box = cpu_box.find("div", "systemRequirementsLinkSubBtm")
-        self.datastorage["AMDCPU" + str(req_number)] = amb_box.find('a').text.strip()
+        try:
+            self.datastorage["AMDCPU" + str(req_number)] = amb_box.find('a').text.strip()
+        except AttributeError:
+            pass
 
         # gpus
         gpu_box = cpu_gpu_boxes[1]
         intel_box = gpu_box.find("div", "systemRequirementsLinkSubTop")
-        self.datastorage["NVIDIAGPU" + str(req_number)] = intel_box.find('a').text.strip()
+        try:
+            self.datastorage["NVIDIAGPU" + str(req_number)] = intel_box.find('a').text.strip()
+        except AttributeError:
+            pass
         amb_box = gpu_box.find("div", "systemRequirementsLinkSubBtm")
-        self.datastorage["AMDGPU" + str(req_number)] = amb_box.find('a').text.strip()
+        try:
+            self.datastorage["AMDGPU" + str(req_number)] = amb_box.find('a').text.strip()
+        except AttributeError:
+            pass
 
         # vram
         spec = req_column.find("div", 'systemRequirementsHwBoxVRAM' + ('Min' if req_number == 1 else '')).find('div')
-        self.datastorage["VRAM" + str(req_number)] = spec.text.strip()
+        try:
+            self.datastorage["VRAM" + str(req_number)] = spec.text.strip()
+        except AttributeError:
+            pass
 
         # ram
         spec = req_column.find("div", 'systemRequirementsHwBoxRAM' + ('Min' if req_number == 1 else '')).find('div')
-        self.datastorage["RAM" + str(req_number)] = spec.text.strip()
+        try:
+            self.datastorage["RAM" + str(req_number)] = spec.text.strip()
+        except AttributeError:
+            pass
 
         # os
         spec = req_column.find("div", 'systemRequirementsHwBoxSystem' + ('Min' if req_number == 1 else '')).find('div')
-        self.datastorage["OS" + str(req_number)] = spec.text.strip()
+        try:
+            self.datastorage["OS" + str(req_number)] = spec.text.strip()
+        except AttributeError:
+            pass
 
         # direct x
         spec = req_column.find("div", 'systemRequirementsHwBoxDirectX' + ('Min' if req_number == 1 else '')).find('div')
-        self.datastorage["DX" + str(req_number)] = spec.text.strip()
+        try:
+            self.datastorage["DX" + str(req_number)] = spec.text.strip()
+        except AttributeError:
+            pass
 
         # hdd
         spec = rows[6]
-        self.datastorage["HDD" + str(req_number)] = spec.text.strip()
-
-        # elif row_counter == 3:
-        # try:
-        #     spec = row.find("div", "systemRequirementsRamContent")
-        #     spec = spec.find('span').text
-        # except AttributeError:
-        #     # print spec.text
-        #     # print self.id
-        #     pass
-
-        #
-        # row_counter = 0
-        # for row in rows:
-        #
-        #     # skip the first row (title row)
-        #     if row_counter == 0:
-        #         row_counter += 1
-        #         continue
-        #
-        #     # skip the second row (buy it row)
-        #     if row_counter == 0:
-        #         row_counter += 1
-        #         continue
-        #
-        #     # gpus
-        #     elif row_counter == 2:
-        #
-        #         try:
-        #             top = row.find("div", "systemRequirementsLinkSubTop")
-        #             top = top.find('a').text
-        #             self.datastorage["NVIDIAGPU" + str(req_number)] = top.strip()
-        #
-        #         except AttributeError:
-        #
-        #             # not all have to top and bottom parts
-        #             pass
-        #         try:
-        #             bottom = row.find("div", "systemRequirementsLinkSubBtm")
-        #             bottom = bottom.find('a').text
-        #             self.datastorage["AMDGPU" + str(req_number)] = bottom.strip()
-        #         except:
-        #             pass
+        try:
+            self.datastorage["HDD" + str(req_number)] = spec.text.strip()
+        except AttributeError:
+            pass
 
     def parse_requirements(self):
         pass
 
     def get_requirements(self):
-
-        count = 0
-
         spec_box = self.soup.find("div", id="systemRequirementsOuterBox")
 
         # no specs found, lets go away
@@ -275,7 +257,7 @@ if __name__ == "__main__":
     for i in range(starting_id, 7350):
         print(f"processing ID: {i} in {datetime.datetime.now()}")
         # get the page, BS it, and get the pageinfo
-        page_to_get = Scraper(baseurl + str(starting_id))
+        page_to_get = Scraper(f'{baseurl}{i}')
         page_info = page_to_get.get_pageinfo()
 
         # if we didnt get anything back (no info etc), we skip the writing
@@ -288,9 +270,9 @@ if __name__ == "__main__":
             f.write(f'{i}')
 
         # be nice, the longer the better
-        sleep(1)
         if i % 100 == 0:
             df.to_csv(f"game-debate_start_{starting_id}_{i}.csv", index=False)
             print(f'persisting file after ID {i}')
+        sleep(1)
 
     df.to_csv(output_file, index=False)
