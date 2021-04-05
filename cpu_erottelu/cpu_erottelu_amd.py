@@ -29,7 +29,7 @@ if __name__ == "__main__":
         #"AMDCPUMODEL"
         if header == "AMDCPUMODEL":
             index = counter+1
-            print index
+            print(index)
         counter += 1
 
     counter = 0
@@ -48,13 +48,13 @@ if __name__ == "__main__":
             for tmp in tmps:
 
                 if tmp.startswith('E') or (tmp.startswith('Q') and tmp.lower() != 'quad') :
-                    print tmp
+                    print(tmp)
                     change_counter += 1
             #print specs[index]
 
 
 
 
-    print change_counter
-    print '/'
-    print all_counter
+    print(change_counter)
+    print('/')
+    print(all_counter)

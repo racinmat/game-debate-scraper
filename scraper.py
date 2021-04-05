@@ -280,6 +280,7 @@ if __name__ == "__main__":
 
     # loop the games from starting_id to end. Heuristic number that should tell number of games
     for i in range(starting_id, 7350):
+        print(f"processing ID: {i} in {datetime.datetime.now()}")
         # get the page, BS it, and get the pageinfo
         page_to_get = Scraper(baseurl + str(starting_id))
         page_info = page_to_get.get_pageinfo()
@@ -288,11 +289,14 @@ if __name__ == "__main__":
         if page_info is None:
             continue
 
-        df.append(page_info, ignore_index=True)
+        df = df.append(page_info, ignore_index=True)
 
         with open('last_index.txt', 'w') as f:
             f.write(f'{i}')
 
         # be nice, the longer the better
-        sleep(3)
+        sleep(1)
+        if i % 100 == 0:
+            df.to_csv(f"game-debate_start_{starting_id}_{i}.csv", index=False)
+
     df.to_csv(output_file, index=False)
