@@ -11,7 +11,9 @@ import pandas as pd
 column_headers = ["ID", "Title", "Release", "Genres", "Theme",
                   "INTELCPU1", "AMDCPU1", "NVIDIAGPU1", "AMDGPU1", "VRAM1", "RAM1", "OS1", "DX1", "HDD1",
                   "INTELCPU2", "AMDCPU2", "NVIDIAGPU2", "AMDGPU2", "VRAM2", "RAM2", "OS2", "DX2", "HDD2",
-                  "INTELCPU3", "AMDCPU3", "NVIDIAGPU3", "AMDGPU3", "VRAM3", "RAM3", "OS3", "DX3", "HDD3"]
+                  "INTELCPU3", "AMDCPU3", "NVIDIAGPU3", "AMDGPU3", "VRAM3", "RAM3", "OS3", "DX3", "HDD3",
+                  "INTELCPU4", "AMDCPU4", "NVIDIAGPU4", "AMDGPU4", "VRAM4", "RAM4", "OS4", "DX4", "HDD4",
+                  'req4type']
 
 spec_header = ["INTELCPU", "AMDCPU", "NVIDIAGPU", "AMDGPU", "RAM", "OS", "DX", "HDD"]
 
@@ -86,7 +88,7 @@ class Scraper:
             rel_date = datetime.datetime.strptime(rel_date_str, '%d %b %Y')
             self.datastorage['Release'] = rel_date
         except ValueError:
-            self.datastorage['Release'] = None
+            # attribute errors are ok, there is the default value "-" already there
             pass
 
     def get_genre_theme(self):
@@ -94,11 +96,14 @@ class Scraper:
         info_wrapper = self.soup.find("div", "g_wrapper")
         genre_divs = info_wrapper.findAll("div", "gameGenreRow")
 
+        if len(genre_divs) == 0:
+            return
+
         if len(genre_divs) > 1:
             print(f'more genre divs, url: {self.url}')
         try:
             self.datastorage["Genres"] = genre_divs[0].text.split('\n')[2].split(', ')
-        except AttributeError:
+        except (AttributeError, IndexError):
             # attribute errors are ok, there is the default value "-" already there
             pass
 
@@ -116,10 +121,10 @@ class Scraper:
             return 'Adj'
 
     def read_column(self, req_column):
-
         # we read the column title first to know what requirements we are dealing with (minimum, recommended, gd adj.)
+        # because css classes are not related to requirements type, so we can't use them
         req_type = req_column.find("div", "systemRequirementsTitle")
-        req_number = 0
+        req_number = 4
         if "Minimum" in req_type.text:
             req_number = 1
         elif "Recommended" in req_type.text or "Predicted" in req_type.text:
@@ -127,8 +132,9 @@ class Scraper:
         elif "GD Adjusted" in req_type.text:
             req_number = 3
         else:
-            print(self.url)
-
+            print(f'unknown requirements type for {self.url}: {req_type}')
+        if req_number == 4:
+            self.datastorage['req4type'] = req_type.text.strip()
         # we get the actual rows, and start collecting the data, and storing them in .datastorage
 
         req_column_inner = req_column.find("div", 'system-requirements-box')
@@ -136,13 +142,13 @@ class Scraper:
         cpu_gpu_boxes = req_column_inner.findAll('div', 'systemRequirementsHwBox')
         # read the cpus
         cpu_box = cpu_gpu_boxes[0]
-        intel_box = cpu_box.find("div", "systemRequirementsLinkSubTop")
         try:
+            intel_box = cpu_box.find("div", "systemRequirementsLinkSubTop")
             self.datastorage["INTELCPU" + str(req_number)] = intel_box.find('a').text.strip()
         except AttributeError:
             pass
-        amb_box = cpu_box.find("div", "systemRequirementsLinkSubBtm")
         try:
+            amb_box = cpu_box.find("div", "systemRequirementsLinkSubBtm")
             self.datastorage["AMDCPU" + str(req_number)] = amb_box.find('a').text.strip()
         except AttributeError:
             pass
@@ -162,35 +168,35 @@ class Scraper:
 
         # vram
         try:
-            spec = req_column.find("div", 'systemRequirementsHwBoxVRAM' + self.col2suffix(req_number)).find('div')
+            spec = rows[2].find('div')
             self.datastorage["VRAM" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
 
         # ram
         try:
-            spec = req_column.find("div", 'systemRequirementsHwBoxRAM' + self.col2suffix(req_number)).find('div')
+            spec = rows[3].find('div')
             self.datastorage["RAM" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
 
         # os
         try:
-            spec = req_column.find("div", 'systemRequirementsHwBoxSystem' + self.col2suffix(req_number)).find('div')
+            spec = rows[4].find('span')
             self.datastorage["OS" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
 
         # direct x
         try:
-            spec = req_column.find("div", 'systemRequirementsHwBoxDirectX' + self.col2suffix(req_number)).find('div')
+            spec = rows[5].find('span')
             self.datastorage["DX" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
 
         # hdd
-        spec = rows[6]
         try:
+            spec = rows[6]
             self.datastorage["HDD" + str(req_number)] = spec.text.strip()
         except AttributeError:
             pass
@@ -259,7 +265,7 @@ if __name__ == "__main__":
         starting_id = int(f.read()) + 1
 
     # for debug purpose
-    # starting_id = 17
+    starting_id = 625
 
     # the file we are gonna write the gotten info, the file has the starting_id in it, in case starting
     # from somewhere else than the begining.
@@ -276,10 +282,10 @@ if __name__ == "__main__":
         page_info = page_to_get.get_pageinfo()
 
         # if we didnt get anything back (no info etc), we skip the writing
-        if page_info is None:
-            continue
-
-        df = df.append(page_info, ignore_index=True)
+        if page_info is not None:
+            df = df.append(page_info, ignore_index=True)
+        else:
+            print(f'skipping game with id {i}')
 
         # be nice, the longer the better
         if i % 100 == 0:
